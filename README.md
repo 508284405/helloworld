@@ -18,8 +18,6 @@
 
 1) 将镜像放入集群
 - Docker Desktop Kubernetes：无需额外操作，直接使用本地镜像。
-- kind：`kind load docker-image helloworld:local --name dev`
-- minikube：`minikube image load helloworld:local`
 
 2) 应用清单并等待就绪
 - `kubectl apply -f k8s/deployment.yaml -f k8s/service.yaml`
@@ -33,31 +31,13 @@
   - 应用：`kubectl apply -f k8s/service.nodeport.yaml`
   - 访问：
     - Docker Desktop：`http://localhost:30080`
-    - minikube：`http://$(minikube ip):30080`
-    - kind：NodePort 在宿主可达性不稳定，推荐使用 Ingress（见下）。
   - 原理：Node 的主机网络开放了一个端口，直接把外部请求转到集群内服务，无需 `port-forward`。
 
 - Ingress（L7 路由）：需要安装 Ingress Controller（如 nginx-ingress）。Ingress 在 80/443 端口接受 HTTP(S) 请求，并按域名/路径转发到后端 `Service`。
   - 清单：`k8s/ingress.yaml`（默认 host 为 `helloworld.localdev.me`）
   - 安装 Controller：
     - Docker Desktop：使用 Helm 安装 `ingress-nginx`，其 Service 通常为 LoadBalancer，可直接通过 `localhost` 访问。
-    - minikube：`minikube addons enable ingress`，然后将 Ingress host 改为 `helloworld.$(minikube ip).nip.io` 或在 hosts 中将域名指向 `minikube ip`。
-    - kind：建议以端口映射创建集群，让 80/443 暴露到宿主。
-      ```bash
-      cat > kind-config.yaml <<'EOF'
-      kind: Cluster
-      apiVersion: kind.x-k8s.io/v1alpha4
-      nodes:
-        - role: control-plane
-          extraPortMappings:
-            - containerPort: 80
-              hostPort: 80
-            - containerPort: 443
-              hostPort: 443
-      EOF
-      kind create cluster --name dev --config kind-config.yaml
-      # 安装 ingress-nginx（参考官方快速开始），再应用 k8s/ingress.yaml
-      ```
+      # 安装 ingress-nginx（参考官方快速开始），再应用 k8s/ingress.yaml(kubectl apply -f k8s/ingress.yaml)
   - 访问：`curl -H "Host: helloworld.localdev.me" http://localhost/`
   - 原理：Ingress Controller 作为反向代理在节点对外监听 80/443，按规则转发 HTTP 流量，无需 `port-forward`。
 
