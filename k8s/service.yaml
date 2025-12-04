@@ -1,0 +1,14 @@
+apiVersion: v1                 # 核心 API 组
+kind: Service                  # 资源类型：Service 用于在集群内暴露服务
+metadata:
+  name: helloworld            # Service 名称
+  labels:
+    app: helloworld
+spec:
+  selector:                   # 选择匹配的 Pod（需与 Deployment 中标签一致）
+    app: helloworld
+  ports:
+    - name: http              # 端口名称（便于引用）
+      port: 8080              # Service 暴露到集群内的端口
+      targetPort: 8080        # 后端容器真实监听端口
+  type: ClusterIP             # 集群内访问；本地调试可用 port-forward 暴露到本机

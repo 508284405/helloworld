@@ -1,0 +1,41 @@
+apiVersion: apps/v1              # 使用的 API 版本
+kind: Deployment                 # 资源类型：Deployment 控制无状态副本
+metadata:
+  name: helloworld               # 对象名称
+  labels:
+    app: helloworld              # 通用标签，便于选择与筛选
+spec:
+  replicas: 1                    # 副本数，开发环境设为 1 即可
+  selector:
+    matchLabels:
+      app: helloworld            # 与 Pod 模板中的标签保持一致
+  template:
+    metadata:
+      labels:
+        app: helloworld          # Pod 的标签
+    spec:
+      containers:
+        - name: helloworld       # 容器名称
+          image: helloworld:local # 镜像名（本地构建标签），与 docker build -t 保持一致
+          imagePullPolicy: IfNotPresent # 本地镜像优先，不存在才拉取
+          ports:
+            - containerPort: 8080 # 容器内服务监听的端口
+          readinessProbe:         # 就绪探针：确保对外流量只会进入已就绪实例
+            httpGet:
+              path: /            # 访问根路径
+              port: 8080
+            initialDelaySeconds: 1
+            periodSeconds: 5
+          livenessProbe:          # 存活探针：容器异常时自动重启
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:              # 资源请求与限制（开发环境保守值）
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
