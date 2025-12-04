@@ -39,7 +39,7 @@
     - Docker Desktop：使用 Helm 安装 `ingress-nginx`，其 Service 通常为 LoadBalancer，可直接通过 `localhost` 访问。
       # 安装 ingress-nginx（参考官方快速开始），再应用 k8s/ingress.yaml(kubectl apply -f k8s/ingress.yaml)
   - 访问：`curl -H "Host: helloworld.localdev.me" http://localhost/`
-  - 原理：Ingress Controller 作为反向代理在节点对外监听 80/443，按规则转发 HTTP 流量，无需 `port-forward`。
+  - 原理：Ingress Controller 作为反向代理(独立服务)在节点对外监听 80/443，按规则转发 HTTP 流量，无需 `port-forward`。
 
 提示：两者的选择
 - 仅需暴露单个端口时，NodePort 更简单。
