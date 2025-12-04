@@ -5,7 +5,7 @@ metadata:
   labels:
     app: helloworld              # 通用标签，便于选择与筛选
 spec:
-  replicas: 1                    # 副本数，开发环境设为 1 即可
+  replicas: 2                    # 副本数，开发环境设为 1 即可
   selector:
     matchLabels:
       app: helloworld            # 与 Pod 模板中的标签保持一致
