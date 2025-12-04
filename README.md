@@ -32,6 +32,7 @@
   - 访问：
     - Docker Desktop：`http://localhost:30080`
   - 原理：Node 的主机网络开放了一个端口，直接把外部请求转到集群内服务，无需 `port-forward`。
+  - ![img_2.png](img_2.png)
 
 - Ingress（L7 路由）：需要安装 Ingress Controller（如 nginx-ingress）。Ingress 在 80/443 端口接受 HTTP(S) 请求，并按域名/路径转发到后端 `Service`。
   - 清单：`k8s/ingress.yaml`（默认 host 为 `helloworld.localdev.me`）
@@ -40,6 +41,7 @@
       # 安装 ingress-nginx（参考官方快速开始），再应用 k8s/ingress.yaml(kubectl apply -f k8s/ingress.yaml)
   - 访问：`curl -H "Host: helloworld.localdev.me" http://localhost/`
   - 原理：Ingress Controller 作为反向代理(独立服务)在节点对外监听 80/443，按规则转发 HTTP 流量，无需 `port-forward`。
+  - ![img.png](img.png)![img_1.png](img_1.png)![img_3.png](img_3.png)
 
 提示：两者的选择
 - 仅需暴露单个端口时，NodePort 更简单。
