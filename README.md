@@ -69,13 +69,8 @@
    - Helm（官方仓库）示例：
      - 创建namespace `kubectl create namespace apisix`
      - 添加 APISIX 官方 Helm 仓库 `helm repo add apache https://apache.github.io/apisix-helm-chart` `helm repo update`
-     - 安装apisix网关 `helm upgrade --install apisix apache/apisix \
-                        --set gateway.type=LoadBalancer \
-                        --namespace apisix \
-                        --create-namespace \
-                        --set dashboard.enabled=true \
-                        --set ingress-controller.enabled=true \
-                        --set ingress-controller.config.apisix.serviceNamespace=apisix`
+     - 安装apisix网关 `helm install apisix apache/apisix -n apisix --create-namespace --set gateway.type=LoadBalancer`
+     - 安装Ingress Controller 并安装CRDS：`helm install apisix-ingress apache/apisix-ingress-controller -n apisix --set installCRDs=true` 
      - 查看结果 `kubectl get pods -n apisix` `kubectl get svc -n apisix`
 2) 应用路由，将域名流量转发给 NGINX Ingress Controller：
    - `kubectl apply -f k8s/apisix/route-to-nginx.yaml`
@@ -84,17 +79,7 @@
 3) 解析入口域名到 APISIX Gateway 地址：
    - 获取地址：`kubectl -n apisix get svc apisix-gateway`
    - Docker Desktop：通常直接通过 `http://localhost/` 访问；
-   - minikube：`curl -H "Host: helloworld.localdev.me" http://$(minikube ip)/`
-   - kind：部署时映射 80/443 到宿主（参见上文 kind 配置），或临时端口转发到 apisix-gateway 以验证。
 
 4) 验证链路：
    - 确保已有 NGINX Ingress 规则指向你的后端服务（如本项目 `Service/helloworld:8080`）。
    - 访问：`curl -H "Host: helloworld.localdev.me" http://<APISIX入口地址>/` 应返回 `hello world`。
-
-为何这样可行？
-- APISIX 充当第 1 层 L7 代理，接受外部请求并按域名/路径进行初步处理（鉴权、限流、改写、灰度等），然后把请求原样（含 Host）转发给 NGINX Ingress。
-- NGINX Ingress 作为第 2 层 L7 代理，根据保留下来的 Host/Path 与自身 Ingress 规则，将流量路由到目标 Kubernetes Service/Pod。
-
-建议
-- 新项目优先考虑直接用 APISIX 作为 Ingress（减少一跳与运维复杂度）。
-- 若处于迁移期，APISIX 前置能保障统一策略，后续逐步把 Ingress 规则迁移为 APISIX CRD 即可。
