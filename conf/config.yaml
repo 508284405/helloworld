@@ -1,0 +1,41 @@
+# APISIX 主配置（Standalone 模式）。
+# 说明：本配置将 APISIX 作为数据面（data_plane），从本地 YAML 文件加载路由，无需 etcd。
+
+deployment:
+  role: data_plane               # 数据面角色
+  role_data_plane:
+    config_provider: yaml        # 从 apisix.yaml 读取路由/上游配置
+
+# 以下为常用端口（与镜像默认一致），列出以便理解与必要时修改。
+apisix:
+  node_listen: 9080              # HTTP 入口端口（容器内）
+  ssl:
+    enable: true
+    listen_port: 9443            # HTTPS 入口端口（容器内）
+
+nginx_config:                    # 保持默认即可；高级调优可在此修改
+  worker_processes: auto
+
+discovery: {}
+plugins:                         # 常用内置插件可在此启用/禁用（默认启用大部分）
+  - ip-restriction
+  - cors
+  - real-ip
+  - proxy-rewrite
+  - limit-count
+  - limit-req
+  - limit-conn
+  - jwt-auth
+  - key-auth
+
+# Admin API 端口（开发用途）。生产环境建议通过内网+鉴权防护或关闭。
+admin_api:
+  enable_admin: true
+  admin_listen:
+    ip: 0.0.0.0
+    port: 9180
+  admin_key:                      # 演示用静态密钥，请勿用于生产
+    - name: admin
+      key: edd1c9f034335f136f87ad84b625c8f1
+      role: admin
+

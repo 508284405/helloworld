@@ -83,3 +83,56 @@
 4) 验证链路：
    - 确保已有 NGINX Ingress 规则指向你的后端服务（如本项目 `Service/helloworld:8080`）。
    - 访问：`curl -H "Host: helloworld.localdev.me" http://<APISIX入口地址>/` 应返回 `hello world`。
+
+## 用 Dockerfile 部署 APISIX（Standalone 模式）
+
+本仓库提供 `apisix.Dockerfile` 与示例配置（`conf/config.yaml`, `conf/apisix.yaml`），以“YAML 独立模式”打包 APISIX，便于本地/K8s 演示。
+
+构建镜像
+- `docker build -f apisix.Dockerfile -t my-apisix:local .`
+
+本地 Docker 运行（可选）
+- 运行：`docker run --rm -p 80:9080 -p 9180:9180 my-apisix:local`
+- 验证：`curl -H "Host: helloworld.localdev.me" http://localhost/`
+- 如需从 Docker 外部转发到 K8s，可启用 `conf/apisix.yaml` 中注释的 NodePort 示例（`host.docker.internal:30080`）。
+
+在 K8s 中运行 APISIX（推荐）
+- 确保 NGINX Ingress 已安装且你的 Ingress 规则生效。
+- 将镜像导入集群：
+  - Docker Desktop：直接使用本地镜像
+  - kind：`kind load docker-image my-apisix:local --name dev`
+  - minikube：`minikube image load my-apisix:local`
+- 部署：
+  - `kubectl create ns apisix || true`
+  - `kubectl apply -f k8s/apisix/standalone-deployment.yaml`
+- 访问：
+  - Docker Desktop：`curl -H "Host: helloworld.localdev.me" http://localhost:30080/`
+  - minikube：`curl -H "Host: helloworld.localdev.me" http://$(minikube ip):30080/`
+
+原理
+- APISIX 按 `conf/apisix.yaml` 将 `helloworld.localdev.me` 转发到 `ingress-nginx-controller` 的 Service，
+  由 NGINX Ingress 再路由到 `Service/helloworld:8080`。
+
+## APISIX 两种用法对比（CRD vs Dockerfile）
+
+相同点
+- 目标一致：APISIX 作为统一入口，把请求转给 NGINX Ingress，并保留 Host 头以便二次路由。
+- 依赖一致：均要求集群已安装并配置好 NGINX Ingress（有对应 Ingress 规则）。
+
+关键差异
+- 配置方式：
+  - CRD 方式：使用 `k8s/apisix/route-to-nginx.yaml` 等 ApisixRoute 资源，需安装 APISIX + APISIX Ingress Controller + CRDs；原生 K8s、热更新、适合 GitOps。
+  - Dockerfile 方式：使用 `apisix.Dockerfile` + `conf/config.yaml` + `conf/apisix.yaml`（可配合 `k8s/apisix/standalone-deployment.yaml` 部署）；无需 CRDs/etcd，但变更通常需重建镜像/滚动发布。
+- 运行位置与网络：
+  - CRD：APISIX 通常在集群内，通过 ClusterIP 直连 `ingress-nginx-controller`。
+  - Docker：既可在集群内运行，也可在集群外通过 NodePort 访问 Ingress；对外端口需自行管理。
+- 可运维性与生态：
+  - CRD：更适合生产，便于与 Helm/Argo CD 集成，RBAC/审计清晰，可观测性好。
+  - Docker：更适合本地演示/PoC，依赖少、上手快，但大规模协作时维护成本较高。
+
+适用场景
+- 生产/多环境/团队协作：优先 CRD（`k8s/apisix/route-to-nginx.yaml`）。
+- 本地演示/快速验证：优先 Docker Standalone（`apisix.Dockerfile` + `conf/*` + `k8s/apisix/standalone-deployment.yaml`）。
+
+迁移建议
+- 先用 Docker Standalone 验证链路与策略 → 成熟后安装 APISIX 控制面与 CRDs，将 `conf/apisix.yaml` 中的路由迁移为 `ApisixRoute`，实现 K8s 原生、热更新与 GitOps 管理。

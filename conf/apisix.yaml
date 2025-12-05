@@ -1,0 +1,33 @@
+# APISIX 路由（Standalone 模式）。
+# 目标：作为统一入口，将域名 helloworld.localdev.me 的请求转发给 NGINX Ingress Controller，
+#      由其按 Ingress 规则路由到后端服务（例如本仓库的 helloworld Service）。
+
+# 注意：此版本适用于“APISIX 运行在 Kubernetes 集群内部”的情况；
+#       上游直接指向 ingress-nginx 的 ClusterIP Service。
+
+routes:
+  - name: to-nginx-ingress
+    desc: "APISIX 前置 -> NGINX Ingress（保留 Host 供二次路由）"
+    uri: /*
+    hosts:
+      - helloworld.localdev.me
+    # 若需要在 APISIX 层做改写/鉴权/限流等，可在此添加插件（plugins 字段）。
+    upstream:
+      type: roundrobin
+      # In-Cluster 访问 NGINX Ingress Controller 的 Service（默认命名空间与端口）
+      nodes:
+        "ingress-nginx-controller.ingress-nginx.svc.cluster.local:80": 1
+
+# 如果 APISIX 运行在 Docker（集群外），请使用“NodePort”方式转发到集群：
+# 1) 启用本仓库中的 k8s/service.nodeport.yaml（nodePort: 30080）
+# 2) 将下方整段替换上面的 upstream（或单独启用一个不同 host 的路由）
+# routes:
+#   - name: to-nginx-nodeport
+#     uri: /*
+#     hosts:
+#       - helloworld.localdev.me
+#     upstream:
+#       type: roundrobin
+#       nodes:
+#         "host.docker.internal:30080": 1  # macOS/Windows Docker 可用；Linux 可改为宿主机 IP
+
