@@ -1,0 +1,20 @@
+# 说明：将 APISIX 作为统一入口（Gateway），把指定域名的流量转发给 NGINX Ingress Controller。
+# 注意：保持 Host 头不变，这样 NGINX Ingress 才能按 Ingress 规则进行二次路由。
+
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: forward-to-nginx-ingress
+  namespace: ingress-nginx # 放在与 ingress-nginx-controller 同一命名空间，便于直接引用 Service
+spec:
+  http:
+    - name: all-to-nginx
+      match:
+        hosts:
+          - helloworld.localdev.me # 入口域名（需解析到 APISIX 网关地址）
+        paths:
+          - /*                     # 转发所有路径
+      backends:
+        - serviceName: ingress-nginx-controller # NGINX Ingress Controller 的 Service 名称
+          servicePort: 80                         # 通常监听 80；如为 443，请改为 443 并确保 TLS 透传/终止策略正确
+
