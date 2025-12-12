@@ -100,8 +100,6 @@
 - 确保 NGINX Ingress 已安装且你的 Ingress 规则生效。
 - 将镜像导入集群：
   - Docker Desktop：直接使用本地镜像
-  - kind：`kind load docker-image my-apisix:local --name dev`
-  - minikube：`minikube image load my-apisix:local`
 - 部署：
   - `kubectl create ns apisix || true`
   - `kubectl apply -f k8s/apisix/standalone-deployment.yaml`

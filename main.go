@@ -1,26 +1,75 @@
-package main // 声明可独立运行的可执行程序；包名必须为 main 才能编译为二进制
+package main
 
 import (
-	"net/http" // 标准库：HTTP 常量与工具（这里用于 http.StatusOK）
+	"context"
+	"log"
+	"net/http"
+	"os"
 
-	"github.com/gin-gonic/gin" // 第三方 Web 框架 Gin，用于快速构建 HTTP 服务
+	"github.com/gin-gonic/gin"
+
+	appasynq "helloworld/asynq"
 )
 
+const redisAddrDefault = "127.0.0.1:6379"
+
+type scheduleRequest struct {
+	UserID int    `json:"user_id"`
+	Email  string `json:"email"`
+	Cron   string `json:"cron"`
+}
+
 func main() {
-	// 创建 Gin 默认引擎：包含 Logger（请求日志）与 Recovery（崩溃恢复）中间件
-	// 等价于手动添加 gin.New() + r.Use(gin.Logger(), gin.Recovery())
+	redisAddr := envOr("REDIS_ADDR", redisAddrDefault)
+
+	queue := appasynq.New(redisAddr)
+	queue.Start()
+	defer queue.Shutdown(context.Background())
+
 	r := gin.Default()
 
-	// 注册一个 GET 路由：当访问根路径 "/" 时返回纯文本 "hello world"
-	// c.String 会设置 Content-Type 为 text/plain，并写入状态码 200
 	r.GET("/", func(c *gin.Context) {
 		c.String(http.StatusOK, "hello world")
 	})
 
-	// 启动 HTTP 服务并监听 0.0.0.0:8080（容器/本机默认端口）
-	// 可改为 r.Run(":80") 或从环境变量读取端口以适配不同平台
+	r.POST("/tasks/welcome", func(c *gin.Context) {
+		var req scheduleRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+			return
+		}
+		if req.UserID == 0 || req.Email == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "user_id and email are required"})
+			return
+		}
+
+		cronExpr := req.Cron
+		if cronExpr == "" {
+			cronExpr = appasynq.DefaultCron
+		}
+
+		payload := appasynq.WelcomePayload{UserID: req.UserID, Email: req.Email}
+		entryID, err := queue.RegisterWelcomeSchedule(c.Request.Context(), payload, cronExpr)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"entry_id": entryID,
+			"cron":     cronExpr,
+			"type":     appasynq.TaskTypeWelcome,
+		})
+	})
+
 	if err := r.Run(":8080"); err != nil {
-		// 若端口被占用或监听失败，将在此处报错退出
-		panic(err)
+		log.Fatalf("gin server: %v", err)
 	}
+}
+
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
